@@ -1,0 +1,50 @@
+version: '3'
+
+services:
+  web:
+    env_file: .env   # Change env_sample.txt to env.txt
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+
+    external_links:        # For running services from external services
+      - "psql-naxa1:db"
+      - "geoserver-naxa:geoserver"
+
+  worker:
+    image: sijantest_web
+    restart: always
+    container_name: worker
+    command: "celery -A project worker -f /logs/worker.log -l DEBUG"
+    depends_on:
+      - web
+    volumes:
+      - ./logs/:/logs/
+    env_file:
+      - worker_env.txt
+    networks:
+      - django_nw
+
+
+  redis:
+    image: redis:alpine
+    restart: always
+    container_name: redis
+    command: redis-server --appendonly yes
+    ports:
+      - 6379:6379
+    volumes:
+      - ./_redis_data:/var/lib/redis
+      - ./redis/rc.local:/etc/rc.local
+    networks:
+      - django_nw
+
+networks:
+  django_nw:
+    driver: bridge
+

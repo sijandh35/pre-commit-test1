@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 
 from pathlib import Path
 
+import os
+import re
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -37,10 +40,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'core',
     'debug_toolbar',
+    'core',
     'notification',
-    'django_celery_results'
+    'celery',
+    'django_celery_results',
+    'corsheaders',
 ]
 
 
@@ -58,7 +63,8 @@ MIDDLEWARE = [
 INTERNAL_IPS = [
     # ...
     '127.0.0.1',
-    'localhost'
+    'localhost',
+    '*'
     # ...
 ]
 
@@ -86,12 +92,30 @@ WSGI_APPLICATION = 'sijantest.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': 'db.splite3',
+#     }
+# }
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': os.environ.get('SQL_ENGINE', 'django.contrib.gis.db.backends.postgis'),
+        'NAME': os.environ.get('POSTGRES_DB', 'postgres'),
+        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', ''),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
     }
 }
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_USE_TLS = True
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'backend.project@gmail.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'project@123')
+EMAIL_PORT = 587
 
 
 # Password validation
@@ -126,16 +150,69 @@ USE_L10N = True
 
 USE_TZ = True
 
+# CACHES = {
+#     "default": {
+#         "BACKEND": "redis",
+#         "LOCATION": "redis://127.0.0.1:6379/1",
+#         "OPTIONS": {
+#             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+#         }
+#     }
+# }
+
+
+
+
+def redis_config(default=None):
+    """
+    Parses `REDIS_SESSION_URL` environment variable to return a dict with
+    expected attributes for django redis session.
+    :return: dict
+    """
+
+    redis_connection_url = os.getenv('REDIS_SESSION_URL', default)
+    match = re.match(
+        r'redis://(:(?P<password>[^@]*)@)?(?P<host>[^:]+):(?P<port>\d+)(/(?P<index>\d+))?',
+        redis_connection_url)
+    if not match:
+        raise ImproperlyConfigured("Could not parse Redis session URL. "
+                                   "Please verify 'REDIS_SESSION_URL' value")
+
+    if match.group('password') is None:
+        password = None
+    else:
+        password = unquote_plus(match.group('password'))
+
+    redis_connection_dict = {
+        'host': match.group('host'),
+        'port': match.group('port'),
+        'db': match.group('index') or 0,
+        'password': password,
+        'prefix': os.getenv('REDIS_SESSION_PREFIX', 'session'),
+        'socket_timeout': os.getenv('REDIS_SESSION_SOCKET_TIMEOUT', 1),
+    }
+    return redis_connection_dict
+
+
+SESSION_REDIS = redis_config(default="redis://redis_cache:6379/1")
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CELERY_RESULT_BACKEND = 'django-db'
-CELERY_CACHE_BACKEND = 'django-cache'
+	
+CELERY_BROKER_URL = "redis://redis:6379"
+CELERY_RESULT_BACKEND = "redis://redis:6379"
+
+CORS_ORIGIN_ALLOW_ALL = True
+CACHE_TTL = 60 * 15
+# SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+# SESSION_CACHE_ALIAS = "default"
