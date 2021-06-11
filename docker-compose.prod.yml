@@ -29,7 +29,7 @@ services:
     volumes:
       - ./logs/:/logs/
     env_file:
-      - env.txt
+      - worker_env.txt
     networks:
       - django_nw
 

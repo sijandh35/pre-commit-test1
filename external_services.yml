@@ -1,18 +1,6 @@
 version: '3.4'
 
 services:
-  db:
-    image: mdillon/postgis:11-alpine
-    container_name: psql-naxa1
-    env_file: pg_env.txt
-    volumes:
-      - ./postgres-data:/var/lib/postgresql/data
-    ports: 
-      - 5432:5432
-    env_file:
-      - pg_env.txt
-
-
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin-naxa1
