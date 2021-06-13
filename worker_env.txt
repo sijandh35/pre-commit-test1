@@ -1,0 +1,4 @@
+DB_HOST=172.22.0.1
+DB_NAME=sijantest
+DB_USER=postgres
+DB_PASS=postgres
