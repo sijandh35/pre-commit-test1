@@ -90,6 +90,16 @@ services:
     depends_on:
       - db
 
+  jenkins:
+    image: jenkins/jenkins:lts-jdk11
+    container_name: jenkins
+    env_file: jenkins.env
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - ./jenkins_home:/var/jenkins_home
+
   # geoserver:
   #   image: kartoza/geoserver:2.19.0
   #   container_name: geoserver-naxa1
